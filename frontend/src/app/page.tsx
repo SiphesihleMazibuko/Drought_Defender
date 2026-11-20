@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore, useState, type FormEvent } from "react";
 import WaterRequests from "./water-requests";
+import BlockchainPayment from "../../blockchain_payment";
 
 const stages = ["Seedling", "Growing", "Mature"] as const;
 const crops = {
@@ -236,6 +237,7 @@ export default function Home() {
                       : screen === "Ask WaterWise"
                         ? "Ask about your demo watering plan, Avalanche, or the Binance AVAX price."
                         : "Payment"}
+                        {screen === "Payment" && <BlockchainPayment />}
             </p>
           </div>
           <span className="location"><span aria-hidden="true">⌖</span> {farm.location}</span>
