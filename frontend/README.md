@@ -140,3 +140,15 @@ Only opaque voucher IDs, approved litres, transaction data, and staff wallet
 addresses appear on-chain. Farmer identities and farm records stay off-chain.
 WaterWise is free for farmers. A six-month cooperative subscription via
 Binance Pay is a proposed revenue feature.
+
+Open **Payments** to try the six-month cooperative checkout at the sample
+price of R600. Avalanche Fuji and Binance Pay are simulated. The browser
+saves a mock confirmation and no funds move.
+
+### Water source dashboard
+
+On **Watering Plan**, choose **Tank** or **Borehole**. The litres available
+for the selected source feed the existing shortfall calculation. Log actual
+litres used on any date through today to see the average per logged day.
+Log zero for a day with no usage. Tank and borehole have separate readings,
+saved in the browser alongside the farm setup.

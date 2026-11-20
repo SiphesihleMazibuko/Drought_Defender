@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore, useState, type FormEvent } from "react";
 import WaterRequests from "./water-requests";
+import Payments from "./payments";
 
 const stages = ["Seedling", "Growing", "Mature"] as const;
 const crops = {
@@ -34,7 +35,13 @@ function isDemoData(value: unknown): value is DemoData {
 }
 
 type Bed = { id: string; crop: keyof typeof crops; stage: typeof stages[number]; area: number; plants: number };
-type Farm = { beds: Bed[]; location: string; scenario: keyof typeof weather };
+type WaterSource = "Tank" | "Borehole";
+type Reading = { available?: string; used?: number };
+type Farm = {
+  beds: Bed[]; location: string; scenario: keyof typeof weather;
+  waterSource?: WaterSource;
+  sourceReadings?: Partial<Record<WaterSource, Record<string, Reading>>>;
+};
 const demo: Farm = {
   location: "Ga-Mothapo, Limpopo",
   scenario: "dry",
@@ -87,7 +94,13 @@ function readFarm(value: string): Farm {
 }
 
 const number = new Intl.NumberFormat("en-ZA", { maximumFractionDigits: 2 });
-const screens = ["Watering Plan", "Crop Beds", "Alerts", "My Voucher", "Ask WaterWise"] as const;
+const farmDate = new Intl.DateTimeFormat("sv-SE", { timeZone: "Africa/Johannesburg" });
+const currentFarmDate = () => farmDate.format(new Date());
+function subscribeToFarmDate(callback: () => void) {
+  const interval = window.setInterval(callback, 60_000);
+  return () => window.clearInterval(interval);
+}
+const screens = ["Watering Plan", "Crop Beds", "Alerts", "My Voucher", "Ask WaterWise", "Payments"] as const;
 const emptyBed: Bed = { id: "", crop: "Tomatoes", stage: "Seedling", area: 0, plants: 0 };
 
 const toolLabels: Record<string, string> = {
@@ -151,7 +164,7 @@ function Assistant({ farm }: { farm: Farm }) {
 export default function Home() {
   const farm = readFarm(useSyncExternalStore(subscribe, snapshot, () => initialSnapshot));
   const [screen, setScreen] = useState<typeof screens[number]>("Watering Plan");
-  const [availableWater, setAvailableWater] = useState("");
+  const [usageNotice, setUsageNotice] = useState("");
   const [editing, setEditing] = useState<Bed | null>(null);
   const [status, setStatus] = useState("");
   const [demoData, setDemoData] = useState<DemoData>();
@@ -174,6 +187,31 @@ export default function Home() {
     return { bed, factor, litres };
   });
   const total = estimates.reduce((sum, estimate) => sum + estimate.litres, 0);
+  const today = useSyncExternalStore(subscribeToFarmDate, currentFarmDate, () => "");
+  const source = farm.waterSource === "Borehole" ? "Borehole" : "Tank";
+  const readings = farm.sourceReadings?.[source] ?? {};
+  const availableWater = readings[today]?.available ?? "";
+  const loggedUsage = Object.values(readings).flatMap(({ used }) => typeof used === "number" && Number.isFinite(used) && used >= 0 ? [used] : []);
+  const averageUsage = loggedUsage.reduce((sum, used) => sum + used / loggedUsage.length, 0);
+
+  function saveReading(date: string, reading: Reading) {
+    const latest = readFarm(snapshot());
+    const sourceHistory = latest.sourceReadings?.[source] ?? {};
+    saveFarm({ ...latest, sourceReadings: { ...latest.sourceReadings,
+      [source]: { ...sourceHistory, [date]: { ...sourceHistory[date], ...reading } },
+    } });
+  }
+
+  function logUsage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const date = String(data.get("date"));
+    const used = Number(data.get("used"));
+    if (!date || date > today || !Number.isFinite(used) || used < 0) return;
+    saveReading(date, { used });
+    setUsageNotice(`${source} usage saved for ${date}.`);
+    event.currentTarget.reset();
+  }
 
   function openScreen(next: typeof screen) {
     setScreen(next);
@@ -214,7 +252,7 @@ export default function Home() {
         <div className="shell nav-inner">
           {screens.map((item, index) => (
             <button key={item} aria-current={screen === item ? "page" : undefined} onClick={() => openScreen(item)}>
-              <span aria-hidden="true">{["◈", "▤", "♧", "◇", "✦"][index]}</span> {item}
+              <span aria-hidden="true">{["◈", "▤", "♧", "◇", "✦", "▣"][index]}</span> {item}
             </button>
           ))}
         </div>
@@ -222,7 +260,7 @@ export default function Home() {
 
       <main className="shell main">
         <div className="intro">
-          <div><h1>{screen}</h1><p>{screen === "Watering Plan" ? "See how much water your crops need today." : screen === "Crop Beds" ? "Manage your farm location and crop beds." : screen === "Alerts" ? "See how demo weather changes your watering plan." : screen === "My Voucher" ? "Track water requests and voucher transactions." : "Ask about your demo watering plan, Avalanche, or the Binance AVAX price."}</p></div>
+          <div><h1>{screen}</h1><p>{screen === "Watering Plan" ? "See how much water your crops need today." : screen === "Crop Beds" ? "Manage your farm location and crop beds." : screen === "Alerts" ? "See how demo weather changes your watering plan." : screen === "My Voucher" ? "Track water requests and voucher transactions." : screen === "Payments" ? "Try the proposed cooperative subscription checkout." : "Ask about your demo watering plan, Avalanche, or the Binance AVAX price."}</p></div>
           <span className="location"><span aria-hidden="true">⌖</span> {farm.location}</span>
         </div>
 
@@ -232,14 +270,41 @@ export default function Home() {
               <div><p>Water needed today</p><strong aria-live="polite">{number.format(total)} <small>L</small></strong><p>Estimated total for {farm.beds.length} {farm.beds.length === 1 ? "bed" : "beds"}</p></div>
               <div className="weather"><span className="weather-icon" aria-hidden="true">{current.icon}</span><div><b>{current.label}</b><p>Demo weather</p><p>{current.rain} mm usable rain · {current.loss} mm reference water loss</p></div></div>
             </section>
+            <section className="panel source-panel">
+              <div className="section-heading payment-heading"><h2>Water source</h2></div>
+              <div className="grid source-overview">
+                <label>Source used for these beds
+                  <select value={source} onChange={(event) => {
+                    saveFarm({ ...readFarm(snapshot()), waterSource: event.target.value as WaterSource });
+                    setUsageNotice("");
+                  }}>
+                    <option>Tank</option><option>Borehole</option>
+                  </select>
+                </label>
+                <div><strong>{loggedUsage.length ? `${number.format(averageUsage)} L/day` : "No usage logged"}</strong>
+                  <p>Average ${source.toLowerCase()} use{loggedUsage.length > 0 && ` over ${loggedUsage.length} logged ${loggedUsage.length === 1 ? "day" : "days"}`}</p></div>
+              </div>
+              <form className="source-log" key={`${source}:${today}`} onSubmit={logUsage}>
+                <label>Date<input type="date" name="date" defaultValue={today} max={today} required /></label>
+                <label>Actual water used (litres)<input type="number" name="used" min="0" max={Number.MAX_SAFE_INTEGER} step="any" inputMode="decimal" required /></label>
+                <button className="secondary">Save daily usage</button>
+              </form>
+              <p className="source-note">Saving the same date updates that day’s reading. Enter 0 for a day with no usage.</p>
+              <p role="status" className="status">{usageNotice}</p>
+            </section>
             <WaterRequests plan={{ scenario: farm.scenario, beds: farm.beds }} total={total}
-              planner={{ available: availableWater, setAvailable: setAvailableWater, openVoucher: () => openScreen("My Voucher"),
+              planner={{ available: availableWater, setAvailable: (available) => saveReading(today, { available }),
+                source, openVoucher: () => openScreen("My Voucher"),
                 loadDemo: () => {
-                  saveFarm({ ...demo, beds: [
+                  const latest = readFarm(snapshot());
+                  const history = latest.sourceReadings?.Tank ?? {};
+                  saveFarm({ ...latest, ...demo, waterSource: "Tank",
+                    sourceReadings: { ...latest.sourceReadings, Tank: { ...history, [today]: { ...history[today], available: "30" } } },
+                    beds: [
                     { ...demo.beds[0], area: 20 / 3, plants: 12 },
                     { ...demo.beds[1], area: 4, plants: 8 },
                   ] });
-                  setAvailableWater("30");
+                  setUsageNotice("");
                 } }} />
             <div className="section-heading"><h2>Water by crop bed</h2><button className="secondary" onClick={() => openScreen("Crop Beds")}>Manage beds</button></div>
             <div className="grid">
@@ -326,6 +391,7 @@ export default function Home() {
 
         {screen === "My Voucher" && <WaterRequests plan={{ scenario: farm.scenario, beds: farm.beds }} total={total} />}
         {screen === "Ask WaterWise" && <Assistant farm={farm} />}
+        {screen === "Payments" && <Payments />}
 
         {farm.scenario === "dry" && (screen === "Alerts" || screen === "Watering Plan") && (
           <aside className="alert" aria-label="Dry spell alert">

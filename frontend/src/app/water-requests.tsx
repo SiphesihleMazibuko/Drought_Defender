@@ -52,7 +52,7 @@ async function api<T>(url: string, headers: Record<string, string>, body?: objec
   return data as T;
 }
 
-type Planner = { available: string; setAvailable: (value: string) => void; openVoucher: () => void; loadDemo: () => void };
+type Planner = { available: string; setAvailable: (value: string) => void; source: string; openVoucher: () => void; loadDemo: () => void };
 
 export default function WaterRequests({ plan, total, planner }: { plan: Plan; total: number; planner?: Planner }) {
   const available = planner?.available ?? "";
@@ -152,7 +152,7 @@ export default function WaterRequests({ plan, total, planner }: { plan: Plan; to
           <form className="panel voucher-form" onSubmit={submit}>
             <div className="metrics shortfall-metrics">
               <div><strong>{litres(total)}</strong><span>Estimated need</span></div>
-              <label>Available water (litres)
+              <label>Available water from {planner.source.toLowerCase()} (litres)
                 <input type="number" inputMode="decimal" min="0" step="any" required value={available}
                   onChange={event => planner.setAvailable(event.target.value)} placeholder="e.g. 30" />
               </label>

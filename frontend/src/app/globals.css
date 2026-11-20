@@ -77,6 +77,15 @@ legend { font-size: 1.2rem; font-weight: 700; margin-bottom: .85rem; }
 .scenario input { width: 1.15rem; height: 1.15rem; flex: none; accent-color: var(--green); }
 .scenario span span { display: block; color: var(--muted); font-size: .875rem; font-weight: 400; margin-top: .2rem; }
 .scenarios p { margin-block: 1rem .65rem; }
+.payment-heading { margin-top: 0; flex-wrap: wrap; }
+.payment-heading p { margin: .25rem 0 0; }
+.payment-actions { margin-top: 1rem; }
+.source-panel { margin-top: 1rem; }
+.source-overview { align-items: center; }
+.source-overview strong { font-size: 1.25rem; }
+.source-overview p, .source-note { color: var(--muted); }
+.source-log { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; margin-block: 1rem .55rem; }
+.source-log label { flex: 1 1 11rem; }
 .assistant .actions { margin-top: .8rem; }
 .assistant button:disabled { opacity: .65; cursor: default; }
 .agent-answer, .agent-error { margin-top: 1rem; line-height: 1.55; }
