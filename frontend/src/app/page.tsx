@@ -87,7 +87,7 @@ function readFarm(value: string): Farm {
 }
 
 const number = new Intl.NumberFormat("en-ZA", { maximumFractionDigits: 2 });
-const screens = ["Watering Plan", "Crop Beds", "Alerts", "My Voucher", "Ask WaterWise"] as const;
+const screens = ["Watering Plan", "Crop Beds", "Alerts", "My Voucher", "Ask WaterWise", "Payment"] as const;
 const emptyBed: Bed = { id: "", crop: "Tomatoes", stage: "Seedling", area: 0, plants: 0 };
 
 const toolLabels: Record<string, string> = {
@@ -214,7 +214,7 @@ export default function Home() {
         <div className="shell nav-inner">
           {screens.map((item, index) => (
             <button key={item} aria-current={screen === item ? "page" : undefined} onClick={() => openScreen(item)}>
-              <span aria-hidden="true">{["◈", "▤", "♧", "◇", "✦"][index]}</span> {item}
+              <span aria-hidden="true">{["◈", "▤", "♧", "◇", "✦", "❖"][index]}</span> {item}
             </button>
           ))}
         </div>
@@ -222,7 +222,22 @@ export default function Home() {
 
       <main className="shell main">
         <div className="intro">
-          <div><h1>{screen}</h1><p>{screen === "Watering Plan" ? "See how much water your crops need today." : screen === "Crop Beds" ? "Manage your farm location and crop beds." : screen === "Alerts" ? "See how demo weather changes your watering plan." : screen === "My Voucher" ? "Track water requests and voucher transactions." : "Ask about your demo watering plan, Avalanche, or the Binance AVAX price."}</p></div>
+          <div>
+            <h1>{screen}</h1>
+            <p>
+              {screen === "Watering Plan"
+                ? "See how much water your crops need today."
+                : screen === "Crop Beds"
+                  ? "Manage your farm location and crop beds."
+                  : screen === "Alerts"
+                    ? "See how demo weather changes your watering plan."
+                    : screen === "My Voucher"
+                      ? "Track water requests and voucher transactions."
+                      : screen === "Ask WaterWise"
+                        ? "Ask about your demo watering plan, Avalanche, or the Binance AVAX price."
+                        : "Payment"}
+            </p>
+          </div>
           <span className="location"><span aria-hidden="true">⌖</span> {farm.location}</span>
         </div>
 
@@ -326,6 +341,12 @@ export default function Home() {
 
         {screen === "My Voucher" && <WaterRequests plan={{ scenario: farm.scenario, beds: farm.beds }} total={total} />}
         {screen === "Ask WaterWise" && <Assistant farm={farm} />}
+        {screen === "Payment" && (
+          <section className="panel" aria-label="Payment">
+            <h2>Payment</h2>
+            <p>Simulated Binance Pay checkout for water credits.</p>
+          </section>
+        )}
 
         {farm.scenario === "dry" && (screen === "Alerts" || screen === "Watering Plan") && (
           <aside className="alert" aria-label="Dry spell alert">
